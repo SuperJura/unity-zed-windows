@@ -1,26 +1,25 @@
 using UnityEngine;
-using NiceIO;
 using SimpleJSON;
-using System;
+using System.IO;
 
 namespace UnityZed
 {
     public class ZedSettings
     {
-        private readonly NPath m_SettingsPath;
+        private readonly string m_SettingsPath;
 
         public ZedSettings()
         {
-            m_SettingsPath = new NPath(Application.dataPath).Parent.Combine(".zed/settings.json");
+            m_SettingsPath = Path.Combine(Directory.GetParent(Application.dataPath).FullName, ".zed", "settings.json");
         }
 
         public void Sync()
         {
-            if (m_SettingsPath.FileExists() == false)
+            if (File.Exists(m_SettingsPath) == false)
             {
-                Debug.Log("Zed settings file not found, creating default settings file.");
-                m_SettingsPath.CreateFile();
-                m_SettingsPath.WriteAllText(JSON.Parse(kDefaultSettings).ToString());
+                UnityEngine.Debug.Log("Zed settings file not found, creating default settings file.");
+                Directory.CreateDirectory(Path.GetDirectoryName(m_SettingsPath));
+                File.WriteAllText(m_SettingsPath, JSON.Parse(kDefaultSettings).ToString());
             }
         }
 

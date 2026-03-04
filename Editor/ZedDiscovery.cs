@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Xml.XPath;
 using System.Text;
-using NiceIO;
 
 namespace UnityZed
 {
@@ -14,7 +13,7 @@ namespace UnityZed
         {
             var results = new List<CodeEditor.Installation>();
 
-            var candidates = new List<(NPath path, TryGetVersion tryGetVersion)> {
+            var candidates = new List<(string path, TryGetVersion tryGetVersion)> {
 
                 // [MacOS]
                 ("/Applications/Zed.app/Contents/MacOS/cli", TryGetVersionFromPlist),
@@ -34,7 +33,7 @@ namespace UnityZed
                 ("/etc/profiles/per-user/linx/bin/zeditor", null),
 
                 // [Linux] (Official Website)
-                (NPath.HomeDirectory.Combine(".local/bin/zed"), null),
+                (Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "bin", "zed"), null),
             };
 
 #if UNITY_EDITOR_WIN
@@ -77,7 +76,7 @@ namespace UnityZed
                 var candidatePath = candidate.path;
                 var candidateTryGetVersion = candidate.tryGetVersion ?? TryGetVersionFallback;
 
-                if (candidatePath.FileExists())
+                if (File.Exists(candidatePath))
                 {
                     var name = new StringBuilder("Zed");
 
@@ -87,7 +86,7 @@ namespace UnityZed
                     results.Add(new()
                     {
                         Name = name.ToString(),
-                        Path = candidatePath.MakeAbsolute().ToString(),
+                        Path = Path.GetFullPath(candidatePath),
                     });
 
                     break;
@@ -115,23 +114,23 @@ namespace UnityZed
         //
         // TryGetVersion implementations
         //
-        private delegate bool TryGetVersion(NPath path, out string vertion);
+        private delegate bool TryGetVersion(string path, out string version);
 
-        private static bool TryGetVersionFallback(NPath path, out string version)
+        private static bool TryGetVersionFallback(string path, out string version)
         {
             version = null;
             return false;
         }
 
-        private static bool TryGetVersionFromPlist(NPath path, out string version)
+        private static bool TryGetVersionFromPlist(string path, out string version)
         {
             version = null;
 
-            var plistPath = path.Combine("../../").Combine("Info.plist");
-            if (plistPath.FileExists() == false)
+            var plistPath = Path.GetFullPath(Path.Combine(path, "..", "..", "Info.plist"));
+            if (File.Exists(plistPath) == false)
                 return false;
 
-            var xPath = new XPathDocument(plistPath.ToString());
+            var xPath = new XPathDocument(plistPath);
             var xNavigator = xPath.CreateNavigator().SelectSingleNode("/plist/dict/key[text()='CFBundleShortVersionString']/following-sibling::string[1]/text()");
             if (xNavigator == null)
                 return false;

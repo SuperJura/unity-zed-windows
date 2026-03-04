@@ -1,19 +1,19 @@
 using System.Diagnostics;
+using System.IO;
 using System.Text;
-using NiceIO;
 using UnityEngine;
 
 namespace UnityZed
 {
     public class ZedProcess
     {
-        private readonly NPath m_ExecPath;
-        private readonly NPath m_ProjectPath;
+        private readonly string m_ExecPath;
+        private readonly string m_ProjectPath;
 
         public ZedProcess(string execPath)
         {
             m_ExecPath = execPath;
-            m_ProjectPath = new NPath(Application.dataPath).Parent;
+            m_ProjectPath = Directory.GetParent(Application.dataPath).FullName;
         }
 
         public bool OpenProject(string filePath = "", int line = -1, int column = -1)
@@ -44,7 +44,7 @@ namespace UnityZed
             {
                 var startInfo = new ProcessStartInfo
                 {
-                    FileName = m_ExecPath.ToString(),
+                    FileName = m_ExecPath,
                     Arguments = args.ToString(),
                     UseShellExecute = false,
                     CreateNoWindow = true,
