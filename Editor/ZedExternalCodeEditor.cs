@@ -62,7 +62,7 @@ namespace UnityZed
             }
 
             m_Generator.Sync();
-            m_Settings.Sync();
+            m_Settings.sync();
 
             return m_Process.OpenProject(filePath, line, column);
         }
@@ -72,7 +72,7 @@ namespace UnityZed
             Assert.IsNotNull(m_Generator);
 
             m_Generator.Sync();
-            m_Settings.Sync();
+            m_Settings.sync();
         }
 
         public void SyncIfNeeded(string[] addedFiles, string[] deletedFiles, string[] movedFiles, string[] movedFromFiles, string[] importedFiles)

@@ -1,29 +1,22 @@
 using UnityEngine;
-using SimpleJSON;
 using System.IO;
 
 namespace UnityZed
 {
     public class ZedSettings
     {
-        private readonly string m_SettingsPath;
-
-        public ZedSettings()
+        public void sync()
         {
-            m_SettingsPath = Path.Combine(Directory.GetParent(Application.dataPath).FullName, ".zed", "settings.json");
-        }
-
-        public void Sync()
-        {
-            if (File.Exists(m_SettingsPath) == false)
+            string settingsPath = Path.Combine(Directory.GetParent(Application.dataPath).FullName, ".zed", "settings.json");
+            if (!File.Exists(settingsPath))
             {
-                UnityEngine.Debug.Log("Zed settings file not found, creating default settings file.");
-                Directory.CreateDirectory(Path.GetDirectoryName(m_SettingsPath));
-                File.WriteAllText(m_SettingsPath, JSON.Parse(kDefaultSettings).ToString());
+                Debug.Log("[ZED] settings file not found, creating default settings file.");
+                Directory.CreateDirectory(Path.GetDirectoryName(settingsPath));
+                File.WriteAllText(settingsPath, defaultSettings);
             }
         }
 
-        private const string kDefaultSettings = @"{
+        const string defaultSettings = @"{
             ""file_scan_exclusions"": [
                 ""**/.*"",
                 ""**/*~"",
