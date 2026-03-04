@@ -1,6 +1,6 @@
+using System.Diagnostics;
 using System.Text;
 using NiceIO;
-using Unity.CodeEditor;
 using UnityEngine;
 
 namespace UnityZed
@@ -43,8 +43,25 @@ namespace UnityZed
                 }
             }
 
-            Debug.Log(m_ExecPath + " " + args);
-            return CodeEditor.OSOpenFile(m_ExecPath.ToString(), args.ToString());
+            UnityEngine.Debug.Log(m_ExecPath + " " + args);
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = m_ExecPath.ToString(),
+                    Arguments = args.ToString(),
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+                using (Process.Start(startInfo)) { }
+                return true;
+            }
+            catch (System.Exception ex)
+            {
+                sLogger.LogError("ZedProcess", $"Failed to start Zed: {ex.Message}");
+                return false;
+            }
         }
     }
 }
