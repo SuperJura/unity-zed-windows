@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Xml.XPath;
 using Microsoft.Unity.VisualStudio.Editor;
+using Unity.CodeEditor;
 using UnityEditor;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
@@ -12,19 +15,22 @@ namespace UnityZed
 {
     public class Zed
     {
-        readonly string editorInstallationPath;
-        readonly string projectPath;
+        string editorInstallationPath;
+        string projectPath;
 
         readonly IGenerator generator;
 
-        public Zed(string editorInstallationPath)
+        public Zed()
         {
-            this.editorInstallationPath = editorInstallationPath;
-            projectPath = Directory.GetParent(Application.dataPath).FullName;
-
             var assembly = typeof(IGenerator).Assembly;
             var type = assembly.GetType("Microsoft.Unity.VisualStudio.Editor.SdkStyleProjectGeneration");
             generator = (IGenerator)Activator.CreateInstance(type);
+        }
+
+        public void setEditorInstallationPath(string path)
+        {
+            this.editorInstallationPath = path;
+            projectPath = Directory.GetParent(Application.dataPath).FullName;
         }
 
         public void addSettingsFileIfNeeded()
@@ -106,12 +112,12 @@ namespace UnityZed
             generator.Sync();
             addSettingsFileIfNeeded();
         }
-        
+
         public void syncIfNeeded(string[] addedFiles, string[] deletedFiles, string[] movedFiles, string[] movedFromFiles, string[] importedFiles)
         {
             generator.SyncIfNeeded(addedFiles.Union(deletedFiles).Union(movedFiles).Union(movedFromFiles), importedFiles);
         }
-        
+
         public bool openProject(string filePath = "", int line = -1, int column = -1)
         {
             if (!string.IsNullOrEmpty(filePath) && !generator.IsSupportedFile(filePath))
@@ -122,7 +128,7 @@ namespace UnityZed
 
             generator.Sync();
             addSettingsFileIfNeeded();
-            
+
             var args = new StringBuilder($"\"{projectPath}\" ");
 
             if (!string.IsNullOrEmpty(filePath))
@@ -182,11 +188,12 @@ namespace UnityZed
 
             var style = new GUIStyle
             {
-                richText = true,
                 margin = new RectOffset(0, 4, 0, 0)
             };
 
-            GUILayout.Label($"<size=10><color=grey>{displayName} v{version} enabled</color></size>", style);
+			GUI.color = Color.gray;
+            GUILayout.Label($"{displayName} v{version} enabled", style);
+			GUI.color = Color.white;
             GUILayout.EndHorizontal();
 
             EditorGUILayout.LabelField("Generate .csproj files for:");
@@ -219,5 +226,133 @@ namespace UnityZed
                 }
             }
         }
+
+        public CodeEditor.Installation[] getInstallations()
+        {
+            var results = new List<CodeEditor.Installation>();
+
+            var candidates = new List<(string path, TryGetVersion tryGetVersion)>
+            {
+                // [MacOS]
+                ("/Applications/Zed.app/Contents/MacOS/cli", TryGetVersionFromPlist),
+                ("/usr/local/bin/zed", null),
+
+                // [Linux] (Flatpak)
+                ("/var/lib/flatpak/app/dev.zed.Zed/current/active/files/bin/zed", null),
+
+                // [Linux] (Repo)
+                ("/usr/bin/zeditor", null),
+
+                // [Linux] (NixOS)
+                ("/run/current-system/sw/bin/zeditor", null),
+                // [Linux] (NixOS HomeManager from Zed Flake)
+                ("/etc/profiles/per-user/linx/bin/zed", null),
+                // [Linux] (NixOS HomeManager from NixPkgs)
+                ("/etc/profiles/per-user/linx/bin/zeditor", null),
+
+                // [Linux] (Official Website)
+                (Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "bin", "zed"), null),
+            };
+
+#if UNITY_EDITOR_WIN
+            // [Windows] Default install locations
+            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
+            var windowsCandidates = new[]
+            {
+                Path.Combine(programFiles, "Zed", "bin", "zed.exe"),
+                Path.Combine(programFilesX86, "Zed", "bin", "zed.exe"),
+                Path.Combine(localAppData, "Programs", "Zed", "bin", "zed.exe"), // common for user-level installs
+                Path.Combine(localAppData, "Zed", "bin", "zed.exe")
+            };
+
+            foreach (var winPath in windowsCandidates)
+            {
+                candidates.Add((winPath, null));
+            }
+
+            // [Windows] Check if 'zed.exe' is in PATH
+            var pathEnv = Environment.GetEnvironmentVariable("PATH");
+            if (!string.IsNullOrEmpty(pathEnv))
+            {
+                var pathDirs = pathEnv.Split(Path.PathSeparator);
+                foreach (var dir in pathDirs)
+                {
+                    var exePath = Path.Combine(dir.Trim(), "zed.exe");
+                    if (File.Exists(exePath))
+                    {
+                        candidates.Add((exePath, null));
+                    }
+                }
+            }
+#endif
+
+            foreach (var candidate in candidates)
+            {
+                var candidatePath = candidate.path;
+                var candidateTryGetVersion = candidate.tryGetVersion ?? TryGetVersionFallback;
+
+                if (File.Exists(candidatePath))
+                {
+                    var name = new StringBuilder("Zed");
+
+                    if (candidateTryGetVersion(candidatePath, out var version))
+                        name.Append($" [{version}]");
+
+                    results.Add(new()
+                    {
+                        Name = name.ToString(),
+                        Path = Path.GetFullPath(candidatePath),
+                    });
+
+                    break;
+                }
+            }
+
+            return results.ToArray();
+
+            static bool TryGetVersionFallback(string path, out string version)
+            {
+                version = null;
+                return false;
+            }
+
+            static bool TryGetVersionFromPlist(string path, out string version)
+            {
+                version = null;
+
+                var plistPath = Path.GetFullPath(Path.Combine(path, "..", "..", "Info.plist"));
+                if (File.Exists(plistPath) == false)
+                    return false;
+
+                var xPath = new XPathDocument(plistPath);
+                var xNavigator = xPath.CreateNavigator().SelectSingleNode("/plist/dict/key[text()='CFBundleShortVersionString']/following-sibling::string[1]/text()");
+                if (xNavigator == null)
+                    return false;
+
+                version = xNavigator.Value;
+                return true;
+            }
+        }
+
+        public bool tryGetInstallationForPath(string editorPath, out CodeEditor.Installation installation)
+        {
+            foreach (var installed in getInstallations())
+            {
+                if (installed.Path == editorPath)
+                {
+                    installation = installed;
+                    return true;
+                }
+            }
+
+            installation = default;
+            return false;
+        }
+
+
+        delegate bool TryGetVersion(string path, out string version);
     }
 }
