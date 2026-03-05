@@ -24,5 +24,5 @@ You can install this package directly through the Unity Package Manager using th
 4. Paste the following link and click **Add**:
 
 ```text
-https://github.com/SuperJura/unity-zed-integration
+https://github.com/SuperJura/unity-zed-integration.git
 ```
