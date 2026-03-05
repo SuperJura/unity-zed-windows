@@ -2,7 +2,7 @@
 
 A lightweight package to integrate the [Zed editor](https://zed.dev) as your external script editor in Unity.
 
-> *Initially forked from [Unity-zed](https://github.com/maligan/unity-zed).*
+> *Initially forked from [Unity-zed](https://github.com/maligan/unity-zed). Forked to add Windows support.*
 
 ---
 
