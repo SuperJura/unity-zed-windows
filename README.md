@@ -8,7 +8,7 @@ A lightweight package to integrate the [Zed editor](https://zed.dev) as your ext
 
 ## Supported Platforms
 
-* **Windows** *(Actively daily-driven)*
+* **Windows**
 * **macOS**
 * **Linux**
 
