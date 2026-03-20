@@ -131,21 +131,16 @@ namespace UnityZedIntegration
 
             var args = new StringBuilder($"\"{projectPath}\" ");
 
-            if (!string.IsNullOrEmpty(filePath))
+         if (!string.IsNullOrEmpty(filePath))
             {
-                args.Append($"\"{filePath}");
-
+                string fileArg = filePath;
                 if (line >= 0)
                 {
-                    args.Append(":");
-                    args.Append(line);
-
-                    if (column >= 0)
-                    {
-                        args.Append(":");
-                        args.Append(column);
-                    }
+                    fileArg += $":{line}";
+                    if (column >= 0) fileArg += $":{column}";
                 }
+                // 确保整个文件路径+行列号被一对双引号包裹
+                args.Append($"\"{fileArg}\"");
             }
 
             Debug.Log(editorInstallationPath + " " + args);
